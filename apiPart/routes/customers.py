@@ -32,12 +32,13 @@ def get_customers():
 @jwt_required()
 def get_my_profile():
     current_user = get_jwt_identity()
-
+    claims = get_jwt()
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
-
+    if claims['role'] == 'admin':
+        return jsonify({"message": "You are a admin"}), 500
     try:
-        cursor.execute("SELECT * FROM customers WHERE e_mail = %s", (current_user['email'],))
+        cursor.execute("SELECT * FROM customers WHERE e_mail = %s", (current_user,))
         user_data = cursor.fetchone()
     except Exception as e:
         db.close()
@@ -79,3 +80,68 @@ def add_customer():
 
     db.close()
     return jsonify({"message": "Customer added successfully!"}), 201
+
+@customers_bp.route('/<int:customer_id>', methods=['PUT'])
+@jwt_required()
+def update_customer(customer_id):
+    claims = get_jwt()
+    current_user = get_jwt_identity()
+    data = request.json
+
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    # Kullanıcı admin değilse yalnızca kendi bilgilerini değiştirebilir
+    if claims['role'] != 'admin' and claims['id'] != customer_id:
+        db.close()
+        return jsonify({"message": "You are not authorized to update this customer"}), 403
+
+    # Güncellenen e-posta adresinin başka bir kullanıcıya ait olmadığını kontrol et
+    cursor.execute("SELECT * FROM customers WHERE e_mail = %s AND customer_id != %s", (data['e_mail'], customer_id))
+    existing_customer = cursor.fetchone()
+    if existing_customer:
+        db.close()
+        return jsonify({"message": "A customer with this email already exists"}), 400
+
+    try:
+        # Kullanıcı bilgilerini güncelle
+        cursor.execute(
+            "UPDATE customers SET name = %s, phone = %s, e_mail = %s WHERE customer_id = %s",
+            (data['name'], data['phone'], data['e_mail'], customer_id)
+        )
+        db.commit()
+    except Exception as e:
+        db.close()
+        return jsonify({"message": "Error updating customer", "error": str(e)}), 500
+
+    db.close()
+    return jsonify({"message": "Customer updated successfully!"}), 200
+
+@customers_bp.route('/<int:customer_id>', methods=['DELETE'])
+@jwt_required()
+def delete_customer(customer_id):
+    claims = get_jwt()
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    if claims['role'] != 'admin':
+        db.close()
+        return jsonify({"message": "Access denied"}), 403
+
+    # Silinecek kullanıcıyı kontrol et
+    cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (customer_id,))
+    customer = cursor.fetchone()
+    if not customer:
+        db.close()
+        return jsonify({"message": "Customer does not exist"}), 404
+
+    # Kullanıcıyı sil
+    try:
+        cursor.execute("DELETE FROM customers WHERE customer_id = %s", (customer_id,))
+        db.commit()
+    except Exception as e:
+        db.close()
+        return jsonify({"message": "Error deleting customer", "error": str(e)}), 500
+
+    db.close()
+    return jsonify({"message": "Customer deleted successfully!"}), 200
