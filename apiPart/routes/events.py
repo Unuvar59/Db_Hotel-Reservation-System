@@ -40,6 +40,14 @@ def update_event(event_id):
 
     data = request.json
     db = get_db_connection()
+
+    # event_id'nin geçerli olup olmadığını kontrol et
+    cursor.execute("SELECT * FROM events WHERE event_id = %s", (event_id,))
+    event = cursor.fetchone()
+    if not event:
+        db.close()
+        return jsonify({"message": "Invalid event_id: Event does not exist"}), 400
+    
     cursor = db.cursor(dictionary=True)
     cursor.execute("UPDATE events SET event_name = %s, date = %s, participation_fee = %s WHERE event_id = %s",
                    (data['event_name'], data['date'], data['participation_fee'], event_id))
@@ -56,6 +64,13 @@ def delete_event(event_id):
 
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
+
+    # event_id'nin geçerli olup olmadığını kontrol et
+    cursor.execute("SELECT * FROM events WHERE event_id = %s", (event_id,))
+    event = cursor.fetchone()
+    if not event:
+        db.close()
+        return jsonify({"message": "Invalid event_id: Event does not exist"}), 400
     cursor.execute("DELETE FROM events WHERE event_id = %s", (event_id,))
     db.commit()
     db.close()
