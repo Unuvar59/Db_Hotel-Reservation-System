@@ -8,6 +8,8 @@ roomservices_bp = Blueprint('roomservices', __name__)
 @jwt_required()
 def get_roomservices():
     claims = get_jwt()
+    if claims['role'] != 'admin':
+        return jsonify({"message": "Access denied"}), 403
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     cursor.execute("SELECT * FROM roomservices")

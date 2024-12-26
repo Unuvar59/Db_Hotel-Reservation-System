@@ -70,6 +70,7 @@ def add_reservation():
     db.commit()
     db.close()
     return jsonify({"message": "Reservation added successfully!"}), 201
+
 @reservations_bp.route('/<int:reservation_id>', methods=['PUT'])
 @jwt_required()
 def update_reservation(reservation_id):
@@ -87,7 +88,7 @@ def update_reservation(reservation_id):
     if not reservation:
         db.close()
         return jsonify({"message": "Invalid reservation_id: Reservation does not exist"}), 400
-    
+
 
     # customer_id'nin geçerli olup olmadığını kontrol et
     cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (data['customer_id'],))
@@ -95,7 +96,13 @@ def update_reservation(reservation_id):
     if not customer:
         db.close()
         return jsonify({"message": "Invalid customer_id: Customer does not exist"}), 400
-
+    # is there room
+    cursor.execute("SELECT * FROM rooms WHERE room_id = %s", (data['room_id'],))
+    customer = cursor.fetchone()
+    if not customer:
+        db.close()
+        return jsonify({"message": "Invalid room_id: Room does not exist"}), 400
+    
     # Tarih çakışmasını kontrol et (mevcut rezervasyon hariç)
     cursor.execute("""
         SELECT * FROM reservations
