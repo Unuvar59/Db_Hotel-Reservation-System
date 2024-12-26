@@ -25,6 +25,14 @@ def add_roomservice():
     data = request.json
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
+
+    # Check if room_id exists
+    cursor.execute("SELECT * FROM rooms WHERE room_id = %s", (data['room_id'],))
+    room = cursor.fetchone()
+    if not room:
+        db.close()
+        return jsonify({"message": "Invalid room_id: Room does not exist"}), 400
+
     cursor.execute("INSERT INTO roomservices (room_id, service_type, cost) VALUES (%s, %s, %s)",
                    (data['room_id'], data['service_type'], data['cost']))
     db.commit()
@@ -41,6 +49,14 @@ def update_roomservice(service_id):
     data = request.json
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
+
+    # Check if room_id exists
+    cursor.execute("SELECT * FROM rooms WHERE room_id = %s", (data['room_id'],))
+    room = cursor.fetchone()
+    if not room:
+        db.close()
+        return jsonify({"message": "Invalid room_id: Room does not exist"}), 400
+
     cursor.execute("UPDATE roomservices SET room_id = %s, service_type = %s, cost = %s WHERE service_id = %s",
                    (data['room_id'], data['service_type'], data['cost'], service_id))
     db.commit()

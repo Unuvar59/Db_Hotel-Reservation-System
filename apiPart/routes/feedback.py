@@ -22,6 +22,14 @@ def add_feedback():
     data = request.json
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
+
+    # Check if customer_id exists
+    cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (data['customer_id'],))
+    customer = cursor.fetchone()
+    if not customer:
+        db.close()
+        return jsonify({"message": "Invalid customer_id: Customer does not exist"}), 400
+
     cursor.execute("INSERT INTO feedback (customer_id, feedback_details, feedback_date) VALUES (%s, %s, %s)",
                    (data['customer_id'], data['feedback_details'], data['feedback_date']))
     db.commit()
@@ -35,6 +43,14 @@ def update_feedback(feedback_id):
     data = request.json
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
+
+    # Check if customer_id exists
+    cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (data['customer_id'],))
+    customer = cursor.fetchone()
+    if not customer:
+        db.close()
+        return jsonify({"message": "Invalid customer_id: Customer does not exist"}), 400
+
     cursor.execute("UPDATE feedback SET customer_id = %s, feedback_details = %s, feedback_date = %s WHERE feedback_id = %s",
                    (data['customer_id'], data['feedback_details'], data['feedback_date'], feedback_id))
     db.commit()
