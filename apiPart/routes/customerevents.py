@@ -35,6 +35,23 @@ def add_customerevent():
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
 
+    # ekleme sırasında geçerli customer_id ve event_id kontrolü
+    cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (data['customer_id'],))
+    customer = cursor.fetchone()
+    if not customer:
+        db.close()
+        return jsonify({"message": "Invalid customer_id: Customer does not exist"}), 400
+
+    cursor.execute("SELECT * FROM events WHERE event_id = %s", (data['event_id'],))
+    event = cursor.fetchone()
+    if not event:
+        db.close()
+        return jsonify({"message": "Invalid event_id: Event does not exist"}), 400
+    
+    # Katılım tarihinin etkinlik tarihi ile eşleşip eşleşmediğini kontrol et
+    if data['participation_date'] != str(event['date']):
+        db.close()
+        return jsonify({"message": "Participation date must match the event date"}), 400
     # Etkinlik ekle
     cursor.execute(
         "INSERT INTO customerevents (customer_id, event_id, participation_date) VALUES (%s, %s, %s)",
@@ -52,17 +69,36 @@ def update_customerevent(customerevent_id):
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
 
-    # Güncellenecek etkinliğin varlığını kontrol et
     cursor.execute("SELECT * FROM customerevents WHERE customerevent_id = %s", (customerevent_id,))
     customerevent = cursor.fetchone()
+    # Admin olmayan kullanıcılar yalnızca kendi etkinliklerini güncelleyebilir
+    if claims['role'] != 'admin' and (customerevent['customer_id'] != claims['id']  or data['customer_id'] != claims['id']):
+        db.close()
+        return jsonify({"message": "You are not authorized to update this customer event"}), 403
+    
+    # Güncellenecek etkinliğin varlığını kontrol et
     if not customerevent:
         db.close()
         return jsonify({"message": "Invalid customerevent_id: Customer event does not exist"}), 400
 
-    # Admin olmayan kullanıcılar yalnızca kendi etkinliklerini güncelleyebilir
-    if claims['role'] != 'admin' and customerevent['customer_id'] != claims['id']:
+     # ekleme sırasında geçerli customer_id ve event_id kontrolü
+    cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (data['customer_id'],))
+    customer = cursor.fetchone()
+    if not customer:
         db.close()
-        return jsonify({"message": "You are not authorized to update this customer event"}), 403
+        return jsonify({"message": "Invalid customer_id: Customer does not exist"}), 400
+
+    cursor.execute("SELECT * FROM events WHERE event_id = %s", (data['event_id'],))
+    event = cursor.fetchone()
+    if not event:
+        db.close()
+        return jsonify({"message": "Invalid event_id: Event does not exist"}), 400
+    
+    # Katılım tarihinin etkinlik tarihi ile eşleşip eşleşmediğini kontrol et
+    if data['participation_date'] != str(event['date']):
+        db.close()
+        return jsonify({"message": "Participation date must match the event date"}), 400
+
 
     # Etkinliği güncelle
     cursor.execute(
