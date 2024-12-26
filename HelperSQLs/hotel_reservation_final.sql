@@ -24,12 +24,12 @@ DROP TABLE IF EXISTS `customers`;
 CREATE TABLE `customers` (
   `customer_id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
-  `phone` varchar(15) NOT NULL,
+  `phone` varchar(20) NOT NULL,
   `e_mail` varchar(255) NOT NULL,
   PRIMARY KEY (`customer_id`),
   UNIQUE KEY `phone` (`phone`),
   UNIQUE KEY `e_mail` (`e_mail`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8  COLLATE=utf8_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 
 --
 -- Table structure for table `employees`
@@ -42,7 +42,7 @@ CREATE TABLE `employees` (
   `position` varchar(100) NOT NULL,
   `contact` varchar(50) NOT NULL,
   PRIMARY KEY (`employee_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Table structure for table `events`
@@ -55,7 +55,7 @@ CREATE TABLE `events` (
   `date` date NOT NULL,
   `participation_fee` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`event_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Table structure for table `feedback`
@@ -68,8 +68,23 @@ CREATE TABLE `feedback` (
   `feedback_details` text NOT NULL,
   `feedback_date` date NOT NULL,
   PRIMARY KEY (`feedback_id`),
-  FOREIGN KEY (`customer_id`) REFERENCES `customers`(`customer_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  FOREIGN KEY (`customer_id`) REFERENCES `customers`(`customer_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Table structure for table `customerevents`
+--
+
+DROP TABLE IF EXISTS `customerevents`;
+CREATE TABLE `customerevents` (
+  `customerevent_id` int NOT NULL AUTO_INCREMENT,
+  `customer_id` int NOT NULL,
+  `event_id` int NOT NULL,
+  `participation_date` date NOT NULL,
+  PRIMARY KEY (`customerevent_id`),
+  FOREIGN KEY (`customer_id`) REFERENCES `customers`(`customer_id`) ON DELETE CASCADE,
+  FOREIGN KEY (`event_id`) REFERENCES `events`(`event_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Table structure for table `payments`
@@ -83,8 +98,8 @@ CREATE TABLE `payments` (
   `payment_date` date NOT NULL,
   PRIMARY KEY (`payment_id`),
   UNIQUE KEY `reservation_id` (`reservation_id`),
-  FOREIGN KEY (`reservation_id`) REFERENCES `reservations`(`reservation_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  FOREIGN KEY (`reservation_id`) REFERENCES `reservations`(`reservation_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Table structure for table `reservations`
@@ -98,9 +113,9 @@ CREATE TABLE `reservations` (
   `check_in_date` date NOT NULL,
   `check_out_date` date NOT NULL,
   PRIMARY KEY (`reservation_id`),
-  FOREIGN KEY (`customer_id`) REFERENCES `customers`(`customer_id`),
-  FOREIGN KEY (`room_id`) REFERENCES `rooms`(`room_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  FOREIGN KEY (`customer_id`) REFERENCES `customers`(`customer_id`) ON DELETE CASCADE,
+  FOREIGN KEY (`room_id`) REFERENCES `rooms`(`room_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Table structure for table `rooms`
@@ -113,7 +128,7 @@ CREATE TABLE `rooms` (
   `pricing` decimal(10,2) NOT NULL,
   `capacity` int NOT NULL,
   PRIMARY KEY (`room_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Table structure for table `roomservices`
@@ -126,8 +141,8 @@ CREATE TABLE `roomservices` (
   `service_type` varchar(100) NOT NULL,
   `cost` decimal(10,2) NOT NULL,
   PRIMARY KEY (`service_id`),
-  FOREIGN KEY (`room_id`) REFERENCES `rooms`(`room_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  FOREIGN KEY (`room_id`) REFERENCES `rooms`(`room_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -137,5 +152,3 @@ CREATE TABLE `roomservices` (
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Schema-only dump completed
