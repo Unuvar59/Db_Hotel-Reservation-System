@@ -1,5 +1,7 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
+from flask_restx import Api
+
 from routes.customers import customers_bp
 from routes.reservations import reservations_bp
 from routes.payments import payments_bp
@@ -15,6 +17,10 @@ from utils.auth import auth_bp
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'very-secure-key'
 jwt = JWTManager(app)
+
+# Swagger API instance
+api = Api(app, version='1.0', title='Hotel Reservation API',
+          description='API documentation for the Hotel Reservation System.')
 
 # Blueprint
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
