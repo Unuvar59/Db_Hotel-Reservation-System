@@ -126,7 +126,7 @@ def delete_customer(customer_id):
 
     if claims['role'] != 'admin':
         db.close()
-        return jsonify({"message": "Access denied"}), 403
+        return jsonify({"message": "You are not authorized to delete this customer"}), 403
 
     # Silinecek kullanıcıyı kontrol et
     cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (customer_id,))
