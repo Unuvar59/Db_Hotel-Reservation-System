@@ -3,8 +3,8 @@ import mysql.connector
 try:
     connection = mysql.connector.connect(
         host="localhost",
-        user="admin",
-        password="123456",
+        user="root",
+        password="12345678",
         database="hotel_reservation"
     )
     if connection.is_connected():

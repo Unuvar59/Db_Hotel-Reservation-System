@@ -3,7 +3,7 @@ import mysql.connector
 def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
-        user="admin",
-        password="123456",
+        user="root",
+        password="12345678",
         database="hotel_reservation"
     )

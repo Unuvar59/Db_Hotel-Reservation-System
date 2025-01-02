@@ -15,7 +15,11 @@ customer_model = api.model('Customer', {
 
 @api.route('/')
 class CustomerList(Resource):
-    @api.doc('list_customers')
+    @api.doc('list_customers', responses={
+        200: 'Success',
+        403: 'Access Denied',
+        500: 'Internal Server Error'
+    })
     @jwt_required()
     def get(self):
         """List all customers"""
@@ -25,13 +29,23 @@ class CustomerList(Resource):
 
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM customers")
-        customers = cursor.fetchall()
+        try:
+            cursor.execute("SELECT * FROM customers")
+            customers = cursor.fetchall()
+        except Exception as e:
+            db.close()
+            return {"message": "Error retrieving customers", "error": str(e)}, 500
+
         db.close()
-        return customers
-    
+        return customers, 200
+
     @api.expect(customer_model)
-    @api.doc('add_customer')
+    @api.doc('add_customer', responses={
+        201: 'Customer added successfully!',
+        400: 'A customer with this email already exists',
+        403: 'Access Denied',
+        500: 'Internal Server Error'
+    })
     @jwt_required()
     def post(self):
         """Add a new customer"""
@@ -43,7 +57,6 @@ class CustomerList(Resource):
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
 
-        # check if the email address already exists
         cursor.execute("SELECT * FROM customers WHERE e_mail = %s", (data['e_mail'],))
         existing_customer = cursor.fetchone()
         if existing_customer:
@@ -61,10 +74,43 @@ class CustomerList(Resource):
         db.close()
         return {"message": "Customer added successfully!"}, 201
 
+@api.route('/me')
+class CustomerProfile(Resource):
+    @api.doc('get_my_profile', responses={
+        200: 'Success',
+        403: 'Access Denied',
+        404: 'User not found',
+        500: 'Internal Server Error'
+    })
+    @jwt_required()
+    def get(self):
+        """Get current user's profile"""
+        current_user = get_jwt_identity()
+        claims = get_jwt()
+
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM customers WHERE e_mail = %s", (current_user,))
+            user_data = cursor.fetchone()
+        except Exception as e:
+            db.close()
+            return {"message": "Error retrieving user data", "error": str(e)}, 500
+
+        db.close()
+        if not user_data:
+            return {"message": "User not found"}, 404
+
+        return user_data, 200
 
 @api.route('/<int:customer_id>')
 class Customer(Resource):
-    @api.doc('get_customer')
+    @api.doc('get_customer', responses={
+        200: 'Success',
+        403: 'Access Denied',
+        404: 'Customer not found',
+        500: 'Internal Server Error'
+    })
     @jwt_required()
     def get(self, customer_id):
         """Get a specific customer by ID"""
@@ -74,29 +120,38 @@ class Customer(Resource):
 
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (customer_id,))
-        customer = cursor.fetchone()
-        db.close()
+        try:
+            cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (customer_id,))
+            customer = cursor.fetchone()
+        except Exception as e:
+            db.close()
+            return {"message": "Error retrieving customer data", "error": str(e)}, 500
 
+        db.close()
         if not customer:
             return {"message": "Customer not found"}, 404
 
-        return customer
+        return customer, 200
 
     @api.expect(customer_model)
-    @api.doc('update_customer')
+    @api.doc('update_customer', responses={
+        200: 'Customer updated successfully!',
+        400: 'A customer with this email already exists',
+        403: 'Access Denied',
+        404: 'Customer not found',
+        500: 'Internal Server Error'
+    })
     @jwt_required()
     def put(self, customer_id):
         """Update a customer"""
         claims = get_jwt()
         if claims['role'] != 'admin' and claims['id'] != customer_id:
-            return {"message": "You are not authorized to update this customer"}, 403
+            return {"message": "Access denied"}, 403
 
         data = request.json
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
 
-        # check if the email address which will be updated is not belonging to another customer
         cursor.execute("SELECT * FROM customers WHERE e_mail = %s AND customer_id != %s", (data['e_mail'], customer_id))
         existing_customer = cursor.fetchone()
         if existing_customer:
@@ -114,9 +169,14 @@ class Customer(Resource):
             return {"message": "Error updating customer", "error": str(e)}, 500
 
         db.close()
-        return {"message": "Customer updated successfully!"}
+        return {"message": "Customer updated successfully!"}, 200
 
-    @api.doc('delete_customer')
+    @api.doc('delete_customer', responses={
+        200: 'Customer deleted successfully!',
+        403: 'Access Denied',
+        404: 'Customer not found',
+        500: 'Internal Server Error'
+    })
     @jwt_required()
     def delete(self, customer_id):
         """Delete a customer"""
@@ -126,13 +186,11 @@ class Customer(Resource):
 
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
-
-        # check if the customer exists before deleting
         cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (customer_id,))
         customer = cursor.fetchone()
         if not customer:
             db.close()
-            return {"message": "Customer does not exist"}, 404
+            return {"message": "Customer not found"}, 404
 
         try:
             cursor.execute("DELETE FROM customers WHERE customer_id = %s", (customer_id,))
@@ -142,7 +200,7 @@ class Customer(Resource):
             return {"message": "Error deleting customer", "error": str(e)}, 500
 
         db.close()
-        return {"message": "Customer deleted successfully!"}
+        return {"message": "Customer deleted successfully!"}, 200
 
 # @customers_bp.route('/', methods=['GET'])
 # @jwt_required()

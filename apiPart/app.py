@@ -12,7 +12,7 @@ from routes.feedback import feedback_bp
 from routes.rooms import rooms_bp
 from routes.roomservices import roomservices_bp
 
-from utils.auth import auth_bp
+from routes_swagger.auth import auth_bp
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'very-secure-key'
