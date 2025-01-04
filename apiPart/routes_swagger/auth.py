@@ -39,26 +39,27 @@ class Login(Resource):
                 if USER_DATA[email]['role'] != 'admin':
                     try:
                         db = get_db_connection()  # check database connection
+                        cursor = db.cursor(dictionary=True)
+                        cursor.execute("SELECT customer_id FROM customers WHERE e_mail = %s", (email,))
+                        customer = cursor.fetchone()
+                        db.close()
+
+                        if not customer:
+                            return {"message": "Customer not found in the database"}, 404
+
+                        # Create token for the user
+                        access_token = create_access_token(
+                            identity=email,
+                            additional_claims={
+                                "id": customer['customer_id'],
+                                "role": USER_DATA[email]['role']
+                            },
+                            expires_delta=timedelta(hours=1)
+                        )
                     except Exception as e:
                         return {"message": "Database connection failed", "error": str(e)}, 500
 
-                    cursor = db.cursor(dictionary=True)
-                    cursor.execute("SELECT customer_id FROM customers WHERE e_mail = %s", (email,))
-                    customer = cursor.fetchone()
-                    db.close()
-
-                    if not customer:
-                        return jsonify({"message": "Customer not found in the database"}), 404
-
-                    # create token for the user
-                    access_token = create_access_token(
-                        identity=email,  # Only email is used as a string
-                        additional_claims={
-                            "id": customer['customer_id'],  # additional information is added here
-                            "role": USER_DATA[email]['role']
-                        },
-                        expires_delta=timedelta(hours=1)
-                    )
+                    
                 else:
                     # create token for the admin
                     access_token = create_access_token(
