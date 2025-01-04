@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models.database import get_db_connection
 from flask_restx import Namespace, Resource, fields
+from decimal import Decimal
+from datetime import date, datetime
 
 roomservices_bp = Blueprint('roomservices', __name__)
 
@@ -14,6 +16,31 @@ roomservice_model = api.model('RoomService', {
     'service_type': fields.String(required=True, description='Type of the service'),
     'cost': fields.Float(required=True, description='Cost of the service')
 })
+
+def serialize_data(data):
+    """Convert non-serializable objects to JSON serializable types."""
+    if isinstance(data, list):
+        return [
+            {
+                key: (
+                    value.strftime('%Y-%m-%d') if isinstance(value, (date, datetime)) else
+                    float(value) if isinstance(value, Decimal) else
+                    value
+                )
+                for key, value in item.items()
+            }
+            for item in data
+        ]
+    elif isinstance(data, dict):
+        return {
+            key: (
+                value.strftime('%Y-%m-%d') if isinstance(value, (date, datetime)) else
+                float(value) if isinstance(value, Decimal) else
+                value
+            )
+            for key, value in data.items()
+        }
+    return data
 
 @api.route('/')
 class RoomServiceList(Resource):
@@ -34,6 +61,7 @@ class RoomServiceList(Resource):
         try:
             cursor.execute("SELECT * FROM roomservices")
             roomservices = cursor.fetchall()
+            roomservices = serialize_data(roomservices) # convert data to JSON serializable types
         except Exception as e:
             db.close()
             return {"message": "Error retrieving room services", "error": str(e)}, 500

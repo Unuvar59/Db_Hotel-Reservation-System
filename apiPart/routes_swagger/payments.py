@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models.database import get_db_connection
 from flask_restx import Namespace, Resource, fields
+from decimal import Decimal
+from datetime import date
 
 payments_bp = Blueprint('payments', __name__)
 
@@ -14,6 +16,23 @@ payment_model = api.model('Payment', {
     'amount': fields.Float(required=True, description='Payment amount'),
     'payment_date': fields.String(required=True, description='Payment date (YYYY-MM-DD)')
 })
+
+def serialize_data(data):
+    """Convert Decimal and date values in a list or dictionary to JSON-serializable types."""
+    if isinstance(data, list):
+        for item in data:
+            for key, value in item.items():
+                if isinstance(value, Decimal):
+                    item[key] = float(value)
+                elif isinstance(value, date):
+                    item[key] = value.strftime('%Y-%m-%d')
+    elif isinstance(data, dict):
+        for key, value in data.items():
+            if isinstance(value, Decimal):
+                data[key] = float(value)
+            elif isinstance(value, date):
+                data[key] = value.strftime('%Y-%m-%d')
+    return data
 
 @api.route('/')
 class PaymentList(Resource):
@@ -34,7 +53,7 @@ class PaymentList(Resource):
                 cursor.execute("SELECT * FROM payments")
                 payments = cursor.fetchall()
             else:
-                # Kullanıcı yalnızca kendi ödemelerini görebilir
+                # user can only see their own payments
                 current_user_id = claims['id']
                 cursor.execute("""
                     SELECT payments.* FROM payments
@@ -42,6 +61,10 @@ class PaymentList(Resource):
                     WHERE reservations.customer_id = %s
                 """, (current_user_id,))
                 payments = cursor.fetchall()
+
+            # convert Decimal and date values to JSON-serializable types
+            payments = serialize_data(payments)
+
         except Exception as e:
             db.close()
             return {"message": "Error retrieving payments", "error": str(e)}, 500
@@ -71,7 +94,7 @@ class PaymentList(Resource):
                 db.close()
                 return {"message": "Invalid reservation_id: Reservation does not exist"}, 400
 
-            # Kullanıcı yalnızca kendi rezervasyonları için ödeme yapabilir
+            # users can only add payments for their own reservations
             if claims['role'] != 'admin' and reservation['customer_id'] != claims['id']:
                 db.close()
                 return {"message": "You are not authorized to add payment for this reservation"}, 403
@@ -103,14 +126,14 @@ class Payment(Resource):
         cursor = db.cursor(dictionary=True)
 
         try:
-            # Ödeme bilgilerini al
+            # get payment details
             cursor.execute("SELECT * FROM payments WHERE payment_id = %s", (payment_id,))
             payment = cursor.fetchone()
             if not payment:
                 db.close()
                 return {"message": "Invalid payment_id: Payment does not exist"}, 400
 
-            # Rezervasyonun bilgilerini kontrol et
+            # check if reservation exists
             cursor.execute("""
                 SELECT * FROM reservations WHERE reservation_id = %s
             """, (payment['reservation_id'],))
@@ -119,12 +142,12 @@ class Payment(Resource):
                 db.close()
                 return {"message": "Invalid reservation associated with this payment"}, 400
 
-            # Admin olmayan kullanıcılar yalnızca kendi rezervasyonlarına ait ödemeleri silebilir
+            # non-admin users can only delete their own payments
             if claims['role'] != 'admin' and reservation['customer_id'] != claims['id']:
                 db.close()
                 return {"message": "You are not authorized to delete this payment"}, 403
 
-            # Ödemeyi sil
+            # delete payment
             cursor.execute("DELETE FROM payments WHERE payment_id = %s", (payment_id,))
             db.commit()
         except Exception as e:

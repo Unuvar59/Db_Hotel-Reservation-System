@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models.database import get_db_connection
 from flask_restx import Api, Resource, fields, Namespace
+from datetime import date, datetime
+from decimal import Decimal
 
 customerevents_bp = Blueprint('customerevents', __name__)
 
@@ -14,6 +16,23 @@ customerevent_model = api.model('CustomerEvent', {
     'event_id': fields.Integer(required=True, description='ID of the event'),
     'participation_date': fields.String(required=True, description='Date of participation (YYYY-MM-DD)')
 })
+
+def serialize_dates(data):
+    """Convert datetime.date or datetime.datetime objects to JSON serializable string."""
+    if isinstance(data, list):
+        return [
+            {
+                key: value.strftime('%Y-%m-%d') if isinstance(value, (date, datetime)) else value
+                for key, value in item.items()
+            }
+            for item in data
+        ]
+    elif isinstance(data, dict):
+        return {
+            key: value.strftime('%Y-%m-%d') if isinstance(value, (date, datetime)) else value
+            for key, value in data.items()
+        }
+    return data
 
 @api.route('/')
 class CustomerEventList(Resource):
@@ -35,6 +54,10 @@ class CustomerEventList(Resource):
             else:
                 cursor.execute("SELECT * FROM customerevents WHERE customer_id = %s", (claims['id'],))
             customerevents = cursor.fetchall()
+
+            # Serialize dates to JSON serializable format
+            customerevents = serialize_dates(customerevents)
+
         except Exception as e:
             db.close()
             return {"message": "Error retrieving customer events", "error": str(e)}, 500
@@ -75,7 +98,7 @@ class CustomerEventList(Resource):
                 return {"message": "Invalid event_id: Event does not exist"}, 400
 
             # Check participation date
-            if data['participation_date'] != str(event['date']):
+            if data['participation_date'] != event['date'].strftime('%Y-%m-%d'):
                 db.close()
                 return {"message": "Participation date must match the event date"}, 400
 
@@ -116,6 +139,10 @@ class CustomerEvent(Resource):
             if claims['role'] != 'admin' and customerevent['customer_id'] != claims['id']:
                 db.close()
                 return {"message": "Access denied"}, 403
+            
+            # convert dates to JSON serializable format
+            customerevent = serialize_dates(customerevent)
+
         except Exception as e:
             db.close()
             return {"message": "Error retrieving customer event", "error": str(e)}, 500

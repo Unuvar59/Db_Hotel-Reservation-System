@@ -35,6 +35,14 @@ class ReservationList(Resource):
         try:
             cursor.execute("SELECT * FROM reservations")
             reservations = cursor.fetchall()
+
+            # convert datetime objects to string
+            for reservation in reservations:
+                if 'check_in_date' in reservation:
+                    reservation['check_in_date'] = reservation['check_in_date'].strftime('%Y-%m-%d')
+                if 'check_out_date' in reservation:
+                    reservation['check_out_date'] = reservation['check_out_date'].strftime('%Y-%m-%d')
+        
         except Exception as e:
             db.close()
             return {"message": "Error retrieving reservations", "error": str(e)}, 500

@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models.database import get_db_connection
 from flask_restx import Namespace, Resource, fields
+from datetime import date, datetime
+from decimal import Decimal
 
 events_bp = Blueprint('events', __name__)
 
@@ -14,6 +16,32 @@ event_model = api.model('Event', {
     'date': fields.String(required=True, description='Date of the event (YYYY-MM-DD)'),
     'participation_fee': fields.Float(required=True, description='Participation fee for the event')
 })
+
+# Helper function to serialize dates and decimals
+def serialize_dates_and_decimals(data):
+    """Convert date, datetime, and Decimal objects to JSON serializable types."""
+    if isinstance(data, list):
+        return [
+            {
+                key: (
+                    value.strftime('%Y-%m-%d') if isinstance(value, (date, datetime)) else
+                    float(value) if isinstance(value, Decimal) else
+                    value
+                )
+                for key, value in item.items()
+            }
+            for item in data
+        ]
+    elif isinstance(data, dict):
+        return {
+            key: (
+                value.strftime('%Y-%m-%d') if isinstance(value, (date, datetime)) else
+                float(value) if isinstance(value, Decimal) else
+                value
+            )
+            for key, value in data.items()
+        }
+    return data
 
 @api.route('/')
 class EventList(Resource):
@@ -29,6 +57,8 @@ class EventList(Resource):
         try:
             cursor.execute("SELECT * FROM events")
             events = cursor.fetchall()
+            # Serialize dates for JSON compatibility
+            events = serialize_dates_and_decimals(events)
         except Exception as e:
             db.close()
             return {"message": "Error retrieving events", "error": str(e)}, 500

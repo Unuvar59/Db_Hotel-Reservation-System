@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models.database import get_db_connection
-from datetime import datetime
+from datetime import date, datetime
 from flask_restx import Namespace, Resource, fields
+from decimal import Decimal
 
 feedback_bp = Blueprint('feedback', __name__)
 
@@ -15,6 +16,31 @@ feedback_model = api.model('Feedback', {
     'feedback_details': fields.String(required=True, description='Details of the feedback'),
     'feedback_date': fields.String(description='Date of the feedback (optional, defaults to today)')
 })
+
+def serialize_data(data):
+    """Convert non-serializable objects to JSON serializable types."""
+    if isinstance(data, list):
+        return [
+            {
+                key: (
+                    value.strftime('%Y-%m-%d') if isinstance(value, (date, datetime)) else
+                    float(value) if isinstance(value, Decimal) else
+                    value
+                )
+                for key, value in item.items()
+            }
+            for item in data
+        ]
+    elif isinstance(data, dict):
+        return {
+            key: (
+                value.strftime('%Y-%m-%d') if isinstance(value, (date, datetime)) else
+                float(value) if isinstance(value, Decimal) else
+                value
+            )
+            for key, value in data.items()
+        }
+    return data
 
 @api.route('/')
 class FeedbackList(Resource):
@@ -30,6 +56,8 @@ class FeedbackList(Resource):
         try:
             cursor.execute("SELECT * FROM feedback")
             feedback = cursor.fetchall()
+            # Serialize non-serializable data
+            feedback = serialize_data(feedback)
         except Exception as e:
             db.close()
             return {"message": "Error retrieving feedback", "error": str(e)}, 500
