@@ -12,8 +12,8 @@ api = Namespace('Reservations', description='Operations related to reservations'
 reservation_model = api.model('Reservation', {
     'customer_id': fields.Integer(description='Customer ID (only for admin users)'),
     'room_id': fields.Integer(required=True, description='Room ID'),
-    'check_in_date': fields.String(required=True, description='Check-in date in the format YYYY-MM-DD'),
-    'check_out_date': fields.String(required=True, description='Check-out date in the format YYYY-MM-DD')
+    'check_in_date': fields.String(required=True, description='Check-in date in the format YYYY-MM-DD', example='2023-12-25'),
+    'check_out_date': fields.String(required=True, description='Check-out date in the format YYYY-MM-DD', example='2023-12-25')
 })
 
 @api.route('/')

@@ -145,13 +145,25 @@ class Customer(Resource):
     def put(self, customer_id):
         """Update a customer"""
         claims = get_jwt()
-        if claims['role'] != 'admin' and claims['id'] != customer_id:
-            return {"message": "Access denied"}, 403
+        current_user_id = claims['id']
+        current_role = claims['role']
+
+        # Restrict non-admin users to update only their own data
+        if current_role != 'admin' and current_user_id != customer_id:
+            return {"message": "Access denied: You can only update your own profile"}, 403
 
         data = request.json
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
 
+        # Check if the customer exists
+        cursor.execute("SELECT * FROM customers WHERE customer_id = %s", (customer_id,))
+        customer = cursor.fetchone()
+        if not customer:
+            db.close()
+            return {"message": "Customer not found"}, 404
+
+        # Check if the email being updated already exists for another customer
         cursor.execute("SELECT * FROM customers WHERE e_mail = %s AND customer_id != %s", (data['e_mail'], customer_id))
         existing_customer = cursor.fetchone()
         if existing_customer:
@@ -159,6 +171,7 @@ class Customer(Resource):
             return {"message": "A customer with this email already exists"}, 400
 
         try:
+            # Update the customer information
             cursor.execute(
                 "UPDATE customers SET name = %s, phone = %s, e_mail = %s WHERE customer_id = %s",
                 (data['name'], data['phone'], data['e_mail'], customer_id)
