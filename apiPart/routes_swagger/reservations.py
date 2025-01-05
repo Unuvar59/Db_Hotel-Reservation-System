@@ -25,15 +25,20 @@ class ReservationList(Resource):
     })
     @jwt_required()
     def get(self):
-        """List all reservations (Admin only)"""
+        """List all reservations (Admin only or user's own reservations)"""
         claims = get_jwt()
-        if claims['role'] != 'admin':
-            return {"message": "Access denied"}, 403
+        user_id = claims['id']
+        role = claims['role']
 
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
+
         try:
-            cursor.execute("SELECT * FROM reservations")
+            if role == 'admin':
+                cursor.execute("SELECT * FROM reservations")
+            else:
+                cursor.execute("SELECT * FROM reservations WHERE customer_id = %s", (user_id,))
+
             reservations = cursor.fetchall()
 
             # convert datetime objects to string
@@ -42,10 +47,11 @@ class ReservationList(Resource):
                     reservation['check_in_date'] = reservation['check_in_date'].strftime('%Y-%m-%d')
                 if 'check_out_date' in reservation:
                     reservation['check_out_date'] = reservation['check_out_date'].strftime('%Y-%m-%d')
-        
+
         except Exception as e:
             db.close()
             return {"message": "Error retrieving reservations", "error": str(e)}, 500
+
         db.close()
         return reservations, 200
 
@@ -62,7 +68,8 @@ class ReservationList(Resource):
         current_user = get_jwt_identity()
         data = request.json
         if claims['role'] != 'admin':
-            data['customer_id'] = claims['id']
+            if data['customer_id'] != claims['id']:
+                return {"message": "Access denied"}, 403
 
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
@@ -129,7 +136,8 @@ class Reservation(Resource):
         claims = get_jwt()
         data = request.json
         if claims['role'] != 'admin':
-            data['customer_id'] = claims['id']
+            if data['customer_id'] != claims['id']:
+                return {"message": "Access denied"}, 403
 
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)

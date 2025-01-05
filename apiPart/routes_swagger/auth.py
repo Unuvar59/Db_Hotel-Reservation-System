@@ -25,34 +25,54 @@ class Login(Resource):
             email = data.get("email")
             password = data.get("password")
 
-            # Fetch user from the database
+            # Fetch user and customer info from the database
             db = get_db_connection()
             cursor = db.cursor(dictionary=True)
+            
+            # Check if user exists in users table
             cursor.execute("SELECT * FROM users WHERE mail = %s", (email,))
             user = cursor.fetchone()
-            db.close()
 
-            # Check if user exists and password is correct
-            if user and user['password'] == password:
-                # Generate JWT token
+            if not user or user['password'] != password:
+                return {"message": "Invalid email or password"}, 401
+
+            if user['role'] == 'admin':
+                # Generate JWT token for admin without customer ID
                 access_token = create_access_token(
                     identity=email,
                     additional_claims={
-                        "id": user['id'],
+                        "id": None,
                         "role": user['role']
                     },
                     expires_delta=timedelta(hours=1)
                 )
-                return {"token": access_token}, 200
+            else:
+                # Fetch corresponding customer id
+                cursor.execute("SELECT id FROM customers WHERE e_mail = %s", (email,))
+                customer = cursor.fetchone()
 
-            return {"message": "Invalid email or password"}, 401
+                if not customer:
+                    return {"message": "User not linked to a valid customer"}, 400
+
+                customer_id = customer['id']
+
+                # Generate JWT token using customer id
+                access_token = create_access_token(
+                    identity=email,
+                    additional_claims={
+                        "id": customer_id,
+                        "role": user['role']
+                    },
+                    expires_delta=timedelta(hours=1)
+                )
+
+            db.close()
+            return {"token": access_token}, 200
+
         except Exception as e:
             return {"message": "An error occurred during login", "error": str(e)}, 500
-        
-
 
 # Swagger model for sign up
-
 signup_model = auth_ns.model('SignUp', {
     'email': fields.String(required=True, description='User email'),
     'password': fields.String(required=True, description='User password'),
@@ -105,12 +125,17 @@ class SignUp(Resource):
                 )
                 db.commit()
 
+                # Fetch the newly created customer's id
+                cursor.execute("SELECT id FROM customers WHERE e_mail = %s", (email,))
+                customer = cursor.fetchone()
+                customer_id = customer['id']
+
                 cursor.execute(
                     "INSERT INTO users (mail, password, role) VALUES (%s, %s, %s)",
                     (email, password, 'user')
                 )
                 db.commit()
                 db.close()
-                return {"message": "User registered successfully (new customer created)"}, 201
+                return {"message": "User registered successfully (new customer created)", "customer_id": customer_id}, 201
         except Exception as e:
             return {"message": "An error occurred during sign up", "error": str(e)}, 500
