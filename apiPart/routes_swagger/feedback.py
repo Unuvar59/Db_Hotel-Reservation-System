@@ -87,7 +87,7 @@ class FeedbackList(Resource):
                 db.close()
                 return {"message": "Invalid customer_id: Customer does not exist"}, 400
 
-            # Admin olmayan kullanıcı kontrolü
+            # non-admin user control
             if claims['role'] != 'admin' and (customer['customer_id'] != claims['id'] or data['customer_id'] != claims['id']):
                 db.close()
                 return {"message": "You are not authorized to add this feedback"}, 403
@@ -136,7 +136,7 @@ class Feedback(Resource):
                 db.close()
                 return {"message": "Invalid customer_id: Customer does not exist"}, 400
 
-            # Admin olmayan kullanıcı kontrolü
+            # non-admin user control
             if claims['role'] != 'admin' and (customer['customer_id'] != claims['id'] or data['customer_id'] != claims['id']):
                 db.close()
                 return {"message": "You are not authorized to update this feedback"}, 403
@@ -171,7 +171,7 @@ class Feedback(Resource):
                 db.close()
                 return {"message": "Invalid feedback_id: Feedback does not exist"}, 400
 
-            # Admin olmayan kullanıcı kontrolü
+            # non-admin user control
             if claims['role'] != 'admin' and feedback['customer_id'] != claims['id']:
                 db.close()
                 return {"message": "You are not authorized to delete this feedback"}, 403

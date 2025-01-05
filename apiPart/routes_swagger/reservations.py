@@ -197,7 +197,7 @@ class Reservation(Resource):
                 db.close()
                 return {"message": "Invalid reservation_id: Reservation does not exist"}, 400
 
-            # Admin olmayan kullanıcı kontrolü
+            # non-admin users can only delete their own reservations
             if claims['role'] != 'admin' and claims['id'] != reservation['customer_id']:
                 db.close()
                 return {"message": "You are not authorized to delete this reservation"}, 403
