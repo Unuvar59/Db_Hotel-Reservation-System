@@ -17,8 +17,8 @@ INSERT INTO customers (customer_id, name, phone, e_mail) VALUES
 (16, 'Jody Reese', '(545)980-5111', 'murrayjacqueline@example.org'),
 (17, 'Alfred Barton', '318.933.6071', 'thernandez@example.com'),
 (18, 'Steven Green', '001-342-427-7868', 'stephanieschmitt@example.org'),
-(19, 'Shawn Cross', '530-410-2193', 'nneal@example.net'),
-(20, 'John Avila', '2589136472', 'mwilliams@example.net');
+(19, 'Shawn Cross', '530-410-2193', 'user2@example.com'),
+(20, 'John Avila', '2589136472', 'user@example.com');
 
 INSERT INTO employees (employee_id, name, position, contact) VALUES
 (1, 'Anna Kennedy', 'Chef', '941-764-7898x7927'),
@@ -111,3 +111,7 @@ INSERT INTO feedback (feedback_id, customer_id, feedback_details, feedback_date)
 (4, 1, 'Medical individual able reduce while future drive father view accept.', '2024-11-21'),
 (5, 7, 'Push gun employee let certain impact old reflect.', '2024-05-28');
 
+INSERT INTO users (mail, password, role) VALUES
+('admin@example.com', 'admin123', 'admin'),
+('user@example.com', 'user123', 'user'),
+('user2@example.com', 'user123', 'user');

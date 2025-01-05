@@ -6,12 +6,6 @@ from datetime import timedelta
 
 auth_ns = Namespace('Auth', description='Authentication related operations')
 
-USER_DATA = {
-    "admin@example.com": {"password": "admin123", "role": "admin"},
-    "user@example.com": {"password": "user123", "role": "user"},
-    "user2@example.com": {"password": "user123", "role": "user"}
-}
-
 # Swagger model for login
 login_model = auth_ns.model('Login', {
     'email': fields.String(required=True, description='User email'),
@@ -22,10 +16,7 @@ login_model = auth_ns.model('Login', {
 class Login(Resource):
     @auth_ns.expect(login_model)
     @auth_ns.doc('login_user', description="""
-        Test credentials for login:
-        - Admin: admin@example.com / admin123
-        - User: user@example.com / user123
-        - User2: user2@example.com / user123
+        Login with registered credentials.
     """)
     def post(self):
         """Login a user and return JWT token"""
@@ -34,44 +25,92 @@ class Login(Resource):
             email = data.get("email")
             password = data.get("password")
 
-            if email in USER_DATA and USER_DATA[email]['password'] == password:
-                # Check if the user is not an admin, get the customer_id from the database
-                if USER_DATA[email]['role'] != 'admin':
-                    try:
-                        db = get_db_connection()  # check database connection
-                        cursor = db.cursor(dictionary=True)
-                        cursor.execute("SELECT customer_id FROM customers WHERE e_mail = %s", (email,))
-                        customer = cursor.fetchone()
-                        db.close()
+            # Fetch user from the database
+            db = get_db_connection()
+            cursor = db.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM users WHERE mail = %s", (email,))
+            user = cursor.fetchone()
+            db.close()
 
-                        if not customer:
-                            return {"message": "Customer not found in the database"}, 404
-
-                        # Create token for the user
-                        access_token = create_access_token(
-                            identity=email,
-                            additional_claims={
-                                "id": customer['customer_id'],
-                                "role": USER_DATA[email]['role']
-                            },
-                            expires_delta=timedelta(hours=1)
-                        )
-                    except Exception as e:
-                        return {"message": "Database connection failed", "error": str(e)}, 500
-
-                    
-                else:
-                    # create token for the admin
-                    access_token = create_access_token(
-                        identity=email,  # Only email is used as a string
-                        additional_claims={
-                            "role": USER_DATA[email]['role']
-                        },
-                        expires_delta=timedelta(hours=1)
-                    )
-
+            # Check if user exists and password is correct
+            if user and user['password'] == password:
+                # Generate JWT token
+                access_token = create_access_token(
+                    identity=email,
+                    additional_claims={
+                        "id": user['id'],
+                        "role": user['role']
+                    },
+                    expires_delta=timedelta(hours=1)
+                )
                 return {"token": access_token}, 200
 
             return {"message": "Invalid email or password"}, 401
         except Exception as e:
             return {"message": "An error occurred during login", "error": str(e)}, 500
+        
+
+
+# Swagger model for sign up
+
+signup_model = auth_ns.model('SignUp', {
+    'email': fields.String(required=True, description='User email'),
+    'password': fields.String(required=True, description='User password'),
+    'name': fields.String(required=True, description='User name'),
+    'phone': fields.String(required=True, description='User phone'),
+})
+
+@auth_ns.route('/signup')
+class SignUp(Resource):
+    @auth_ns.expect(signup_model)
+    @auth_ns.doc('sign_up_user', description="Register a new user")
+    def post(self):
+        """Register a new user"""
+        try:
+            data = request.json
+            email = data.get("email")
+            password = data.get("password")
+            name = data.get("name")
+            phone = data.get("phone")
+
+            # Check if the email already exists
+            db = get_db_connection()
+            cursor = db.cursor(dictionary=True)
+
+            # Check if the email already exists in users table
+            cursor.execute("SELECT * FROM users WHERE mail = %s", (email,))
+            existing_user = cursor.fetchone()
+
+            if existing_user:
+                return {"message": "Email already registered"}, 400
+
+            # Check if the email exists in customers table
+            cursor.execute("SELECT * FROM customers WHERE e_mail = %s", (email,))
+            existing_customer = cursor.fetchone()
+
+            if existing_customer:
+                # If customer exists, only add to users table
+                cursor.execute(
+                    "INSERT INTO users (mail, password, role) VALUES (%s, %s, %s)",
+                    (email, password, 'user')
+                )
+                db.commit()
+                db.close()
+                return {"message": "User registered successfully (linked to existing customer)"}, 201
+            else:
+                # If customer doesn't exist, add to both customers and users tables
+                cursor.execute(
+                    "INSERT INTO customers (name, phone, e_mail) VALUES (%s, %s, %s)",
+                    (name, phone, email)
+                )
+                db.commit()
+
+                cursor.execute(
+                    "INSERT INTO users (mail, password, role) VALUES (%s, %s, %s)",
+                    (email, password, 'user')
+                )
+                db.commit()
+                db.close()
+                return {"message": "User registered successfully (new customer created)"}, 201
+        except Exception as e:
+            return {"message": "An error occurred during sign up", "error": str(e)}, 500
